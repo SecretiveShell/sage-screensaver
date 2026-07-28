@@ -48,6 +48,7 @@ export class Scene {
   ]
   private animationFrameId?: number
   private elapsed = 0
+  private minimalMode = false
   private readonly pointer = new THREE.Vector2()
   private previousTime = 0
 
@@ -154,6 +155,20 @@ export class Scene {
 
   setSignalLevel(level: number) {
     this.signalRing.setSignalLevel(level)
+  }
+
+  setMinimalMode(enabled: boolean) {
+    this.minimalMode = enabled
+    const visible = !enabled
+
+    this.backgroundParticles.group.visible = visible
+    this.coreRays.group.visible = visible
+    this.outerLabel.mesh.visible = visible
+    this.signalRing.mesh.visible = visible
+  }
+
+  toggleMinimalMode() {
+    this.setMinimalMode(!this.minimalMode)
   }
 
   setTheme(theme: Theme) {
