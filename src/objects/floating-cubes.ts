@@ -36,9 +36,9 @@ export class FloatingCubes {
         mesh,
         baseZ,
         phase: Math.random() * Math.PI * 2,
-        orbitSpeed: 0.18 + Math.random() * 0.22,
+        orbitSpeed: 0.08 + Math.random() * 0.12,
         radius,
-        rotationSpeed: 0.35 + Math.random() * 0.35,
+        rotationSpeed: 0.16 + Math.random() * 0.18,
       })
     }
   }

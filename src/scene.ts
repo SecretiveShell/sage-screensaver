@@ -20,6 +20,7 @@ export class Scene {
   private readonly icosahedron = new Icosahedron(0.7, 0.12, 0.2)
   private readonly outerIcosahedron = new Icosahedron(1.8, 0.12, -0.18)
   private animationFrameId?: number
+  private elapsed = 0
   private previousTime = 0
 
   constructor(canvas: HTMLCanvasElement) {
@@ -111,11 +112,15 @@ export class Scene {
   private render = (time: number) => {
     const delta = (time - this.previousTime) / 1_000
     this.previousTime = time
+    this.elapsed += delta
 
     this.icosahedron.update(delta)
     this.outerIcosahedron.update(delta)
     this.floatingCubes.update(delta)
     this.backgroundParticles.update(delta)
+    this.camera.position.x = Math.sin(this.elapsed * 0.08) * 0.08
+    this.camera.position.y = Math.cos(this.elapsed * 0.06) * 0.05
+    this.camera.lookAt(0, 0, 0)
     this.camera.layers.set(1)
     this.bloomComposer.render()
     this.camera.layers.set(0)
