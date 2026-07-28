@@ -1,0 +1,59 @@
+import * as THREE from 'three'
+
+interface Cube {
+  angle: number
+  mesh: THREE.Mesh
+  baseZ: number
+  phase: number
+  orbitSpeed: number
+  radius: number
+  rotationSpeed: number
+}
+
+export class FloatingCubes {
+  public readonly group = new THREE.Group()
+
+  private readonly cubes: Cube[] = []
+  private elapsed = 0
+
+  constructor(count = 18) {
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+    })
+
+    for (let index = 0; index < count; index += 1) {
+      const angle = Math.random() * Math.PI * 2
+      const radius = 0.9 + Math.random() * 0.45
+      const baseZ = (Math.random() - 0.5) * 0.4
+      const size = 0.045 + Math.random() * 0.065
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), material)
+
+      mesh.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, baseZ)
+      mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0)
+      this.group.add(mesh)
+      this.cubes.push({
+        angle,
+        mesh,
+        baseZ,
+        phase: Math.random() * Math.PI * 2,
+        orbitSpeed: 0.18 + Math.random() * 0.22,
+        radius,
+        rotationSpeed: 0.35 + Math.random() * 0.35,
+      })
+    }
+  }
+
+  update(delta: number) {
+    this.elapsed += delta
+
+    for (const cube of this.cubes) {
+      cube.angle += delta * cube.orbitSpeed
+      cube.mesh.position.x = Math.cos(cube.angle) * cube.radius
+      cube.mesh.position.y = Math.sin(cube.angle) * cube.radius
+      cube.mesh.position.z =
+        cube.baseZ + Math.sin(this.elapsed * cube.rotationSpeed + cube.phase) * 0.035
+      cube.mesh.rotation.x += delta * cube.rotationSpeed
+      cube.mesh.rotation.y += delta * cube.rotationSpeed * 0.7
+    }
+  }
+}
