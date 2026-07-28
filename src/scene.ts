@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import { BackgroundParticles } from './objects/background-particles.ts'
 import { Core } from './objects/core.ts'
 import { FloatingCubes } from './objects/floating-cubes.ts'
 import { Icosahedron } from './objects/icosahedron.ts'
@@ -13,6 +14,7 @@ export class Scene {
   private readonly renderer: THREE.WebGLRenderer
   private readonly bloomComposer: EffectComposer
   private readonly finalComposer: EffectComposer
+  private readonly backgroundParticles = new BackgroundParticles()
   private readonly core = new Core()
   private readonly floatingCubes = new FloatingCubes()
   private readonly icosahedron = new Icosahedron(0.7, 0.12, 0.2)
@@ -21,6 +23,7 @@ export class Scene {
   private previousTime = 0
 
   constructor(canvas: HTMLCanvasElement) {
+    this.scene.background = new THREE.Color(0x020407)
     this.camera = new THREE.PerspectiveCamera(
       45,
       window.innerWidth / window.innerHeight,
@@ -76,6 +79,7 @@ export class Scene {
     )
 
     this.scene.add(
+      this.backgroundParticles.group,
       this.core.mesh,
       this.icosahedron.mesh,
       this.outerIcosahedron.mesh,
@@ -111,6 +115,7 @@ export class Scene {
     this.icosahedron.update(delta)
     this.outerIcosahedron.update(delta)
     this.floatingCubes.update(delta)
+    this.backgroundParticles.update(delta)
     this.camera.layers.set(1)
     this.bloomComposer.render()
     this.camera.layers.set(0)
