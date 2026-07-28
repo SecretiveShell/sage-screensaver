@@ -11,3 +11,5 @@ const canvas = document.querySelector<HTMLCanvasElement>('canvas')!
 const scene = new Scene(canvas)
 
 scene.start()
+
+Object.assign(window, { sageScene: scene })

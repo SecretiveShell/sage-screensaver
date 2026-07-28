@@ -108,6 +108,14 @@ export class Scene {
     this.render(this.previousTime)
   }
 
+  showMessage(message: string) {
+    this.outerLabel.showMessage(message)
+  }
+
+  clearMessage() {
+    this.outerLabel.clearMessage()
+  }
+
   dispose() {
     if (this.animationFrameId !== undefined) {
       cancelAnimationFrame(this.animationFrameId)

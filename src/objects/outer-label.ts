@@ -1,5 +1,13 @@
 import * as THREE from 'three'
 
+interface MessageTransition {
+  glyphs?: string[]
+  loops: number
+  phase: 'clearing' | 'revealing' | 'looping'
+  progress: number
+  stepElapsed: number
+}
+
 export class OuterLabel {
   public readonly mesh: THREE.Sprite
 
@@ -7,6 +15,7 @@ export class OuterLabel {
   private readonly glyphs = [...randomGlyphs(116)]
   private readonly texture: THREE.CanvasTexture
   private glyphElapsed = 0
+  private transition?: MessageTransition
 
   constructor(radius = 2.5) {
     const labelTexture = createLabelTexture(this.glyphs)
@@ -15,9 +24,9 @@ export class OuterLabel {
     this.mesh = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: this.texture,
-        color: 0xd9e5ef,
+        color: 0xc6ddeb,
         transparent: true,
-        opacity: 0.14,
+        opacity: 0.42,
         depthWrite: false,
       }),
     )
@@ -26,6 +35,12 @@ export class OuterLabel {
 
   update(delta: number) {
     this.mesh.material.rotation -= delta * 0.05
+
+    if (this.transition) {
+      this.updateTransition(delta)
+      return
+    }
+
     this.glyphElapsed += delta
 
     if (this.glyphElapsed >= 0.12) {
@@ -39,6 +54,81 @@ export class OuterLabel {
       this.texture.needsUpdate = true
       this.glyphElapsed = 0
     }
+  }
+
+  showMessage(message: string) {
+    this.clearMessage()
+    this.transition!.glyphs = createMessageGlyphs(message, this.glyphs.length)
+  }
+
+  clearMessage() {
+    this.transition = {
+      loops: 0,
+      phase: 'clearing',
+      progress: 0,
+      stepElapsed: 0,
+    }
+  }
+
+  private updateTransition(delta: number) {
+    const transition = this.transition!
+    transition.stepElapsed += delta
+    const stepDuration = transition.phase === 'clearing' ? 0.04 : 0.075
+
+    while (transition.stepElapsed >= stepDuration) {
+      transition.stepElapsed -= stepDuration
+      const order = createRingOrder(this.glyphs.length)
+
+      if (transition.phase === 'clearing') {
+        advanceGlyphWave(this.glyphs, order, transition.progress, () => '')
+        transition.progress += 1
+
+        if (transition.progress > this.glyphs.length + 3) {
+          if (transition.glyphs) {
+            transition.phase = 'revealing'
+            transition.progress = 0
+          } else {
+            this.transition = undefined
+            break
+          }
+        }
+      } else if (transition.phase === 'revealing') {
+        advanceGlyphWave(
+          this.glyphs,
+          order,
+          transition.progress,
+          (index) => transition.glyphs![index],
+        )
+        transition.progress += 1
+
+        if (transition.progress > this.glyphs.length + 3) {
+          transition.phase = 'looping'
+          transition.progress = 0
+        }
+      } else {
+        advanceGlyphWave(
+          this.glyphs,
+          order,
+          transition.progress,
+          (index) => transition.glyphs![index],
+        )
+        transition.progress += 1
+
+        if (transition.progress > this.glyphs.length + 3) {
+          transition.loops += 1
+
+          if (transition.loops >= 3) {
+            this.clearMessage()
+            break
+          }
+
+          transition.progress = 0
+        }
+      }
+    }
+
+    redrawLabel(this.context, this.glyphs)
+    this.texture.needsUpdate = true
   }
 }
 
@@ -61,31 +151,61 @@ function redrawLabel(context: CanvasRenderingContext2D, glyphs: string[]) {
   const center = size / 2
 
   context.clearRect(0, 0, size, size)
-  context.fillStyle = '#ffffff'
+  context.strokeStyle = 'rgba(220, 240, 255, 0.32)'
+  context.lineWidth = 1.5
   context.beginPath()
-  context.arc(center, center, 500, 0, Math.PI * 2)
-  context.fill()
-  context.globalCompositeOperation = 'destination-out'
+  context.arc(center, center, 494, 0, Math.PI * 2)
+  context.stroke()
   context.beginPath()
-  context.arc(center, center, 416, 0, Math.PI * 2)
-  context.fill()
-  context.globalCompositeOperation = 'source-over'
+  context.arc(center, center, 420, 0, Math.PI * 2)
+  context.stroke()
 
-  context.fillStyle = '#05070a'
+  context.strokeStyle = 'rgba(220, 240, 255, 0.08)'
+  context.lineWidth = 46
+  context.beginPath()
+  context.arc(center, center, 458, 0, Math.PI * 2)
+  context.stroke()
+
+  context.fillStyle = 'rgba(232, 246, 255, 0.95)'
   context.font = '600 26px ui-monospace, monospace'
   context.textAlign = 'center'
   context.textBaseline = 'middle'
-  drawGlyphRing(context, center, glyphs)
+  drawCalibrationMarks(context, center)
+  drawGlyphRing(context, center, glyphs, 458, 1)
 }
 
-function drawGlyphRing(context: CanvasRenderingContext2D, center: number, glyphs: string[]) {
+function drawCalibrationMarks(context: CanvasRenderingContext2D, center: number) {
+  context.strokeStyle = 'rgba(220, 240, 255, 0.62)'
+  context.lineWidth = 2
+
+  for (let index = 0; index < 12; index += 1) {
+    const angle = (index / 12) * Math.PI * 2
+    const cosine = Math.cos(angle)
+    const sine = Math.sin(angle)
+
+    context.beginPath()
+    context.moveTo(center + cosine * 422, center + sine * 422)
+    context.lineTo(center + cosine * 434, center + sine * 434)
+    context.moveTo(center + cosine * 482, center + sine * 482)
+    context.lineTo(center + cosine * 496, center + sine * 496)
+    context.stroke()
+  }
+}
+
+function drawGlyphRing(
+  context: CanvasRenderingContext2D,
+  center: number,
+  glyphs: string[],
+  radius: number,
+  direction: number,
+) {
   for (const [index, glyph] of [...glyphs].entries()) {
-    const angle = (index / glyphs.length) * Math.PI * 2 - Math.PI / 2
+    const angle = direction * (index / glyphs.length) * Math.PI * 2 - Math.PI / 2
 
     context.save()
     context.translate(center, center)
     context.rotate(angle + Math.PI / 2)
-    context.fillText(glyph, 0, -458)
+    context.fillText(glyph, 0, -radius)
     context.restore()
   }
 }
@@ -98,4 +218,39 @@ function randomGlyph() {
   const glyphs = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜ0123456789'
 
   return glyphs[Math.floor(Math.random() * glyphs.length)]
+}
+
+function createRingOrder(length: number) {
+  const leftmostGlyph = Math.floor(length * 0.75)
+
+  return Array.from({ length }, (_, index) => (index + leftmostGlyph) % length)
+}
+
+function advanceGlyphWave(
+  glyphs: string[],
+  order: number[],
+  progress: number,
+  complete: (index: number) => string,
+) {
+  for (const [position, index] of order.entries()) {
+    const age = progress - position
+
+    if (age >= 3) {
+      glyphs[index] = complete(index)
+    } else if (age >= 0) {
+      glyphs[index] = randomGlyph()
+    }
+  }
+}
+
+function createMessageGlyphs(message: string, length: number) {
+  const glyphs = Array<string>(length).fill('')
+  const characters = [...message.toUpperCase()]
+  const start = -Math.floor(characters.length / 2)
+
+  for (const [index, character] of characters.entries()) {
+    glyphs[(start + index + length) % length] = character
+  }
+
+  return glyphs
 }
