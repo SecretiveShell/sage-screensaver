@@ -13,3 +13,7 @@ body {
 #app > main {
   min-height: 100vh;
 }
+
+canvas {
+  display: block;
+}
