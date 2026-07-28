@@ -82,9 +82,11 @@ export class OuterLabel {
     transition.stepElapsed += delta
     const stepDuration =
       transition.phase === 'clearing' ? CLEAR_STEP_DURATION : WAVE_STEP_DURATION
+    let changed = false
 
     while (transition.stepElapsed >= stepDuration) {
       transition.stepElapsed -= stepDuration
+      changed = true
       if (transition.phase === 'clearing') {
         advanceGlyphWave(this.glyphs, this.ringOrder, transition.progress, () => '')
         transition.progress += 1
@@ -133,8 +135,10 @@ export class OuterLabel {
       }
     }
 
-    redrawLabel(this.context, this.glyphs)
-    this.texture.needsUpdate = true
+    if (changed) {
+      redrawLabel(this.context, this.glyphs)
+      this.texture.needsUpdate = true
+    }
   }
 }
 
