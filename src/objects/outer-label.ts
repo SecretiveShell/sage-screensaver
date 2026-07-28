@@ -1,5 +1,11 @@
 import * as THREE from 'three'
 
+const CLEAR_STEP_DURATION = 0.04
+const GLITCH_CYCLES = 3
+const GLYPH_UPDATE_INTERVAL = 0.12
+const MAX_RANDOM_GLYPH_CHANGES = 32
+const WAVE_STEP_DURATION = 0.075
+
 interface MessageTransition {
   glyphs?: string[]
   loops: number
@@ -13,6 +19,7 @@ export class OuterLabel {
 
   private readonly context: CanvasRenderingContext2D
   private readonly glyphs = [...randomGlyphs(116)]
+  private readonly ringOrder = createRingOrder(this.glyphs.length)
   private readonly texture: THREE.CanvasTexture
   private glyphElapsed = 0
   private transition?: MessageTransition
@@ -43,8 +50,8 @@ export class OuterLabel {
 
     this.glyphElapsed += delta
 
-    if (this.glyphElapsed >= 0.12) {
-      const changes = 1 + Math.floor(Math.random() * 32)
+    if (this.glyphElapsed >= GLYPH_UPDATE_INTERVAL) {
+      const changes = 1 + Math.floor(Math.random() * MAX_RANDOM_GLYPH_CHANGES)
 
       for (let index = 0; index < changes; index += 1) {
         this.glyphs[Math.floor(Math.random() * this.glyphs.length)] = randomGlyph()
@@ -73,14 +80,13 @@ export class OuterLabel {
   private updateTransition(delta: number) {
     const transition = this.transition!
     transition.stepElapsed += delta
-    const stepDuration = transition.phase === 'clearing' ? 0.04 : 0.075
+    const stepDuration =
+      transition.phase === 'clearing' ? CLEAR_STEP_DURATION : WAVE_STEP_DURATION
 
     while (transition.stepElapsed >= stepDuration) {
       transition.stepElapsed -= stepDuration
-      const order = createRingOrder(this.glyphs.length)
-
       if (transition.phase === 'clearing') {
-        advanceGlyphWave(this.glyphs, order, transition.progress, () => '')
+        advanceGlyphWave(this.glyphs, this.ringOrder, transition.progress, () => '')
         transition.progress += 1
 
         if (transition.progress > this.glyphs.length + 3) {
@@ -95,7 +101,7 @@ export class OuterLabel {
       } else if (transition.phase === 'revealing') {
         advanceGlyphWave(
           this.glyphs,
-          order,
+          this.ringOrder,
           transition.progress,
           (index) => transition.glyphs![index],
         )
@@ -108,7 +114,7 @@ export class OuterLabel {
       } else {
         advanceGlyphWave(
           this.glyphs,
-          order,
+          this.ringOrder,
           transition.progress,
           (index) => transition.glyphs![index],
         )
@@ -117,7 +123,7 @@ export class OuterLabel {
         if (transition.progress > this.glyphs.length + 3) {
           transition.loops += 1
 
-          if (transition.loops >= 3) {
+          if (transition.loops >= GLITCH_CYCLES) {
             this.clearMessage()
             break
           }

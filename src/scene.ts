@@ -11,6 +11,10 @@ import { Icosahedron } from './objects/icosahedron.ts'
 import { OuterLabel } from './objects/outer-label.ts'
 import { SignalRing } from './objects/signal-ring.ts'
 
+interface Updatable {
+  update(delta: number): void
+}
+
 export class Scene {
   private readonly scene = new THREE.Scene()
   private readonly camera: THREE.PerspectiveCamera
@@ -25,6 +29,15 @@ export class Scene {
   private readonly outerIcosahedron = new Icosahedron(1.8, 0.12, -0.18)
   private readonly outerLabel = new OuterLabel()
   private readonly signalRing = new SignalRing()
+  private readonly updatables: Updatable[] = [
+    this.icosahedron,
+    this.outerIcosahedron,
+    this.floatingCubes,
+    this.backgroundParticles,
+    this.coreRays,
+    this.outerLabel,
+    this.signalRing,
+  ]
   private animationFrameId?: number
   private elapsed = 0
   private previousTime = 0
@@ -132,13 +145,9 @@ export class Scene {
     this.previousTime = time
     this.elapsed += delta
 
-    this.icosahedron.update(delta)
-    this.outerIcosahedron.update(delta)
-    this.floatingCubes.update(delta)
-    this.backgroundParticles.update(delta)
-    this.coreRays.update(delta)
-    this.outerLabel.update(delta)
-    this.signalRing.update(delta)
+    for (const object of this.updatables) {
+      object.update(delta)
+    }
     this.camera.position.x = Math.sin(this.elapsed * 0.08) * 0.08
     this.camera.position.y = Math.cos(this.elapsed * 0.06) * 0.05
     this.camera.lookAt(0, 0, 0)
