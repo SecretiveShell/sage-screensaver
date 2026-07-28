@@ -3,21 +3,30 @@ import * as THREE from 'three'
 export class SignalRing {
   public readonly mesh: THREE.Sprite
 
+  private signalLevel = 0
+  private targetSignalLevel = 0
+
   constructor(radius = 3.4) {
     this.mesh = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: createSignalTexture(),
         color: 0xc8d8e8,
         transparent: true,
-        opacity: 0.26,
+        opacity: 0.4,
         depthWrite: false,
       }),
     )
     this.mesh.scale.setScalar(radius * 2)
   }
 
+  setSignalLevel(level: number) {
+    this.targetSignalLevel = THREE.MathUtils.clamp(level, 0, 1)
+  }
+
   update(delta: number) {
-    this.mesh.material.rotation += delta * 0.012
+    this.signalLevel += (this.targetSignalLevel - this.signalLevel) * Math.min(delta * 2, 1)
+    this.mesh.material.rotation += delta * (0.012 + this.signalLevel * 0.04)
+    this.mesh.material.opacity = 0.4 + this.signalLevel * 0.3
   }
 }
 

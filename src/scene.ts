@@ -15,6 +15,13 @@ interface Updatable {
   update(delta: number): void
 }
 
+type Theme = 'alert' | 'cool'
+
+const THEMES: Record<Theme, { background: THREE.ColorRepresentation; foreground: THREE.ColorRepresentation }> = {
+  cool: { background: 0x020407, foreground: 0xc6ddeb },
+  alert: { background: 0x0a0202, foreground: 0xff8a6d },
+}
+
 export class Scene {
   private readonly scene = new THREE.Scene()
   private readonly camera: THREE.PerspectiveCamera
@@ -30,6 +37,7 @@ export class Scene {
   private readonly outerLabel = new OuterLabel()
   private readonly signalRing = new SignalRing()
   private readonly updatables: Updatable[] = [
+    this.core,
     this.icosahedron,
     this.outerIcosahedron,
     this.floatingCubes,
@@ -40,6 +48,7 @@ export class Scene {
   ]
   private animationFrameId?: number
   private elapsed = 0
+  private readonly pointer = new THREE.Vector2()
   private previousTime = 0
 
   constructor(canvas: HTMLCanvasElement) {
@@ -113,6 +122,7 @@ export class Scene {
     enableBloom(this.icosahedron.mesh)
     enableBloom(this.outerIcosahedron.mesh)
     this.resize()
+    window.addEventListener('pointermove', this.onPointerMove)
     window.addEventListener('resize', this.resize)
   }
 
@@ -129,12 +139,53 @@ export class Scene {
     this.outerLabel.clearMessage()
   }
 
+  pulseCore() {
+    this.core.pulse()
+    this.coreRays.pulse()
+  }
+
+  scatterCubes() {
+    this.floatingCubes.scatter()
+  }
+
+  gatherCubes() {
+    this.floatingCubes.gather()
+  }
+
+  setSignalLevel(level: number) {
+    this.signalRing.setSignalLevel(level)
+  }
+
+  setTheme(theme: Theme) {
+    const colors = THEMES[theme]
+    this.scene.background = new THREE.Color(colors.background)
+
+    for (const object of [
+      this.coreRays.group,
+      this.core.mesh,
+      this.icosahedron.mesh,
+      this.outerIcosahedron.mesh,
+    ]) {
+      setObjectColor(object, 0xffffff)
+    }
+
+    for (const object of [
+      this.backgroundParticles.group,
+      this.outerLabel.mesh,
+      this.signalRing.mesh,
+      this.floatingCubes.group,
+    ]) {
+      setObjectColor(object, colors.foreground)
+    }
+  }
+
   dispose() {
     if (this.animationFrameId !== undefined) {
       cancelAnimationFrame(this.animationFrameId)
     }
 
     window.removeEventListener('resize', this.resize)
+    window.removeEventListener('pointermove', this.onPointerMove)
     this.bloomComposer.dispose()
     this.finalComposer.dispose()
     this.renderer.dispose()
@@ -148,8 +199,8 @@ export class Scene {
     for (const object of this.updatables) {
       object.update(delta)
     }
-    this.camera.position.x = Math.sin(this.elapsed * 0.08) * 0.08
-    this.camera.position.y = Math.cos(this.elapsed * 0.06) * 0.05
+    this.camera.position.x = Math.sin(this.elapsed * 0.08) * 0.08 + this.pointer.x * 0.12
+    this.camera.position.y = Math.cos(this.elapsed * 0.06) * 0.05 + this.pointer.y * 0.09
     this.camera.lookAt(0, 0, 0)
     this.camera.layers.set(1)
     this.bloomComposer.render()
@@ -167,8 +218,33 @@ export class Scene {
     this.bloomComposer.setSize(width, height)
     this.finalComposer.setSize(width, height)
   }
+
+  private onPointerMove = (event: PointerEvent) => {
+    this.pointer.set(
+      event.clientX / window.innerWidth - 0.5,
+      0.5 - event.clientY / window.innerHeight,
+    )
+  }
+
 }
 
 function enableBloom(object: THREE.Object3D) {
   object.traverse((child) => child.layers.enable(1))
+}
+
+function setObjectColor(object: THREE.Object3D, color: THREE.ColorRepresentation) {
+  object.traverse((child) => {
+    const material = (child as THREE.Mesh).material
+    const materials = Array.isArray(material) ? material : [material]
+
+    for (const item of materials) {
+      if (item && hasColor(item)) {
+        item.color.set(color)
+      }
+    }
+  })
+}
+
+function hasColor(material: THREE.Material): material is THREE.Material & { color: THREE.Color } {
+  return 'color' in material && material.color instanceof THREE.Color
 }

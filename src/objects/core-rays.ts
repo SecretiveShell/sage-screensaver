@@ -3,6 +3,9 @@ import * as THREE from 'three'
 export class CoreRays {
   public readonly group = new THREE.Group()
 
+  private readonly material: THREE.MeshBasicMaterial
+  private pulseAmount = 0
+
   constructor() {
     const positions: number[] = []
 
@@ -34,22 +37,24 @@ export class CoreRays {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
 
-    this.group.add(
-      new THREE.Mesh(
-        geometry,
-        new THREE.MeshBasicMaterial({
-          color: 0xe6f6ff,
-          transparent: true,
-          opacity: 0.13,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-        }),
-      ),
-    )
+    this.material = new THREE.MeshBasicMaterial({
+      color: 0xe6f6ff,
+      transparent: true,
+      opacity: 0.13,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    })
+    this.group.add(new THREE.Mesh(geometry, this.material))
+  }
+
+  pulse() {
+    this.pulseAmount = 1
   }
 
   update(delta: number) {
     this.group.rotation.z += delta * 0.025
+    this.pulseAmount = Math.max(0, this.pulseAmount - delta * 1.3)
+    this.material.opacity = 0.13 + this.pulseAmount * 0.3
   }
 }
