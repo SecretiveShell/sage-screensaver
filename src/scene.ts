@@ -5,8 +5,11 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { BackgroundParticles } from './objects/background-particles.ts'
 import { Core } from './objects/core.ts'
+import { CoreRays } from './objects/core-rays.ts'
 import { FloatingCubes } from './objects/floating-cubes.ts'
 import { Icosahedron } from './objects/icosahedron.ts'
+import { OuterLabel } from './objects/outer-label.ts'
+import { SignalRing } from './objects/signal-ring.ts'
 
 export class Scene {
   private readonly scene = new THREE.Scene()
@@ -16,9 +19,12 @@ export class Scene {
   private readonly finalComposer: EffectComposer
   private readonly backgroundParticles = new BackgroundParticles()
   private readonly core = new Core()
+  private readonly coreRays = new CoreRays()
   private readonly floatingCubes = new FloatingCubes()
   private readonly icosahedron = new Icosahedron(0.7, 0.12, 0.2)
   private readonly outerIcosahedron = new Icosahedron(1.8, 0.12, -0.18)
+  private readonly outerLabel = new OuterLabel()
+  private readonly signalRing = new SignalRing()
   private animationFrameId?: number
   private elapsed = 0
   private previousTime = 0
@@ -81,12 +87,16 @@ export class Scene {
 
     this.scene.add(
       this.backgroundParticles.group,
+      this.signalRing.mesh,
+      this.coreRays.group,
       this.core.mesh,
       this.icosahedron.mesh,
       this.outerIcosahedron.mesh,
+      this.outerLabel.mesh,
       this.floatingCubes.group,
     )
     enableBloom(this.core.mesh)
+    enableBloom(this.coreRays.group)
     enableBloom(this.icosahedron.mesh)
     enableBloom(this.outerIcosahedron.mesh)
     this.resize()
@@ -118,6 +128,9 @@ export class Scene {
     this.outerIcosahedron.update(delta)
     this.floatingCubes.update(delta)
     this.backgroundParticles.update(delta)
+    this.coreRays.update(delta)
+    this.outerLabel.update(delta)
+    this.signalRing.update(delta)
     this.camera.position.x = Math.sin(this.elapsed * 0.08) * 0.08
     this.camera.position.y = Math.cos(this.elapsed * 0.06) * 0.05
     this.camera.lookAt(0, 0, 0)
