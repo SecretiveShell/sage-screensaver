@@ -10,16 +10,11 @@ import { FloatingCubes } from './objects/floating-cubes.ts'
 import { Icosahedron } from './objects/icosahedron.ts'
 import { OuterLabel } from './objects/outer-label.ts'
 import { SignalRing } from './objects/signal-ring.ts'
+import { ThemeController } from './theme-controller.ts'
+import { THEMES, type ThemeConfig, type ThemeName } from './themes.ts'
 
 interface Updatable {
   update(delta: number): void
-}
-
-type Theme = 'alert' | 'cool'
-
-const THEMES: Record<Theme, { background: THREE.ColorRepresentation; foreground: THREE.ColorRepresentation }> = {
-  cool: { background: 0x020407, foreground: 0xc6ddeb },
-  alert: { background: 0x0a0202, foreground: 0xff8a6d },
 }
 
 export class Scene {
@@ -27,7 +22,9 @@ export class Scene {
   private readonly camera: THREE.PerspectiveCamera
   private readonly renderer: THREE.WebGLRenderer
   private readonly bloomComposer: EffectComposer
+  private readonly bloomPass: UnrealBloomPass
   private readonly finalComposer: EffectComposer
+  private readonly themeController: ThemeController
   private readonly backgroundParticles = new BackgroundParticles()
   private readonly core = new Core()
   private readonly coreRays = new CoreRays()
@@ -36,11 +33,13 @@ export class Scene {
   private readonly outerIcosahedron = new Icosahedron(1.8, 0.12, -0.18)
   private readonly outerLabel = new OuterLabel()
   private readonly signalRing = new SignalRing()
-  private readonly updatables: Updatable[] = [
+  private readonly essentialUpdatables: Updatable[] = [
     this.core,
     this.icosahedron,
     this.outerIcosahedron,
     this.floatingCubes,
+  ]
+  private readonly ambientUpdatables: Updatable[] = [
     this.backgroundParticles,
     this.coreRays,
     this.outerLabel,
@@ -48,6 +47,8 @@ export class Scene {
   ]
   private animationFrameId?: number
   private elapsed = 0
+  private activeTheme: ThemeConfig = THEMES.cool
+  private nextThemeEffect = 0
   private minimalMode = false
   private readonly pointer = new THREE.Vector2()
   private previousTime = 0
@@ -66,16 +67,16 @@ export class Scene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
     this.bloomComposer = new EffectComposer(this.renderer)
+    this.bloomComposer.setPixelRatio(1)
     this.bloomComposer.renderToScreen = false
     this.bloomComposer.addPass(new RenderPass(this.scene, this.camera))
-    this.bloomComposer.addPass(
-      new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.8,
-        0.45,
-        0.75,
-      ),
+    this.bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.8,
+      0.45,
+      0.75,
     )
+    this.bloomComposer.addPass(this.bloomPass)
 
     this.finalComposer = new EffectComposer(this.renderer)
     this.finalComposer.addPass(new RenderPass(this.scene, this.camera))
@@ -122,6 +123,21 @@ export class Scene {
     enableBloom(this.coreRays.group)
     enableBloom(this.icosahedron.mesh)
     enableBloom(this.outerIcosahedron.mesh)
+    this.themeController = new ThemeController(this.scene, this.bloomPass, {
+      core: collectColorMaterials([
+        this.coreRays.group,
+        this.core.mesh,
+        this.icosahedron.mesh,
+        this.outerIcosahedron.mesh,
+      ]),
+      foreground: collectColorMaterials([
+        this.backgroundParticles.group,
+        this.outerLabel.mesh,
+        this.signalRing.mesh,
+        this.floatingCubes.group,
+      ]),
+    })
+    this.themeController.sync()
     this.resize()
     window.addEventListener('pointermove', this.onPointerMove)
     window.addEventListener('resize', this.resize)
@@ -171,27 +187,15 @@ export class Scene {
     this.setMinimalMode(!this.minimalMode)
   }
 
-  setTheme(theme: Theme) {
-    const colors = THEMES[theme]
-    this.scene.background = new THREE.Color(colors.background)
-
-    for (const object of [
-      this.coreRays.group,
-      this.core.mesh,
-      this.icosahedron.mesh,
-      this.outerIcosahedron.mesh,
-    ]) {
-      setObjectColor(object, 0xffffff)
+  setTheme(theme: ThemeName) {
+    this.activeTheme = this.themeController.setTheme(theme)
+    this.nextThemeEffect = this.elapsed
+    this.backgroundParticles.group.visible = !this.minimalMode
+    if (!this.activeTheme.effects.cubeScatter) {
+      this.gatherCubes()
     }
 
-    for (const object of [
-      this.backgroundParticles.group,
-      this.outerLabel.mesh,
-      this.signalRing.mesh,
-      this.floatingCubes.group,
-    ]) {
-      setObjectColor(object, colors.foreground)
-    }
+    this.setSignalLevel(this.activeTheme.effects.signalLevel)
   }
 
   dispose() {
@@ -211,11 +215,19 @@ export class Scene {
     this.previousTime = time
     this.elapsed += delta
 
-    for (const object of this.updatables) {
+    for (const object of this.essentialUpdatables) {
       object.update(delta)
     }
-    this.camera.position.x = Math.sin(this.elapsed * 0.08) * 0.08 + this.pointer.x * 0.12
-    this.camera.position.y = Math.cos(this.elapsed * 0.06) * 0.05 + this.pointer.y * 0.09
+
+    if (!this.minimalMode) {
+      for (const object of this.ambientUpdatables) {
+        object.update(delta)
+      }
+    }
+    this.themeController.update(delta)
+    const distortion = this.updateThemeEffects()
+    this.camera.position.x = Math.sin(this.elapsed * 0.08) * 0.08 + this.pointer.x * 0.12 + distortion.x
+    this.camera.position.y = Math.cos(this.elapsed * 0.06) * 0.05 + this.pointer.y * 0.09 + distortion.y
     this.camera.lookAt(0, 0, 0)
     this.camera.layers.set(1)
     this.bloomComposer.render()
@@ -241,23 +253,54 @@ export class Scene {
     )
   }
 
+  private updateThemeEffects() {
+    const { effects } = this.activeTheme
+
+    if (effects.cubeScatter && this.elapsed >= this.nextThemeEffect) {
+      this.scatterCubes()
+      this.nextThemeEffect = this.elapsed
+        + effects.cubeScatter.interval
+        + Math.random() * effects.cubeScatter.variance
+    }
+
+    const stutter = Math.pow(
+      Math.max(0, Math.sin(this.elapsed * effects.stutterFrequency)),
+      effects.stutterPower,
+    )
+    this.coreRays.group.rotation.z += effects.raySpin + stutter * effects.rayStutterSpin
+    this.floatingCubes.group.rotation.z = Math.sin(this.elapsed * effects.cubeOrbitSpeed)
+      * effects.cubeOrbitAmplitude
+    this.backgroundParticles.group.visible = !this.minimalMode && stutter < effects.particleFlickerThreshold
+
+    return new THREE.Vector2(
+      Math.sin(this.elapsed * effects.cameraJitter.xFrequency) * stutter * effects.cameraJitter.x,
+      Math.cos(this.elapsed * effects.cameraJitter.yFrequency) * stutter * effects.cameraJitter.y,
+    )
+  }
+
 }
 
 function enableBloom(object: THREE.Object3D) {
   object.traverse((child) => child.layers.enable(1))
 }
 
-function setObjectColor(object: THREE.Object3D, color: THREE.ColorRepresentation) {
-  object.traverse((child) => {
-    const material = (child as THREE.Mesh).material
-    const materials = Array.isArray(material) ? material : [material]
+function collectColorMaterials(objects: THREE.Object3D[]) {
+  const materials = new Set<THREE.Material>()
 
-    for (const item of materials) {
-      if (item && hasColor(item)) {
-        item.color.set(color)
+  for (const object of objects) {
+    object.traverse((child) => {
+    const material = (child as THREE.Mesh).material
+      const items = Array.isArray(material) ? material : [material]
+
+      for (const item of items) {
+        if (item && hasColor(item)) {
+          materials.add(item)
+        }
       }
-    }
-  })
+    })
+  }
+
+  return [...materials]
 }
 
 function hasColor(material: THREE.Material): material is THREE.Material & { color: THREE.Color } {
