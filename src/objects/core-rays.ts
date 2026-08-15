@@ -3,6 +3,8 @@ import * as THREE from 'three'
 export class CoreRays {
   public readonly group = new THREE.Group()
 
+  private audioLevel = 0
+  private targetAudioLevel = 0
   private readonly material: THREE.MeshBasicMaterial
   private pulseAmount = 0
 
@@ -52,9 +54,14 @@ export class CoreRays {
     this.pulseAmount = 1
   }
 
+  setAudioLevel(level: number) {
+    this.targetAudioLevel = THREE.MathUtils.clamp(level, 0, 1)
+  }
+
   update(delta: number) {
     this.group.rotation.z += delta * 0.025
     this.pulseAmount = Math.max(0, this.pulseAmount - delta * 1.3)
-    this.material.opacity = 0.13 + this.pulseAmount * 0.3
+    this.audioLevel += (this.targetAudioLevel - this.audioLevel) * Math.min(delta * 12, 1)
+    this.material.opacity = 0.13 + this.pulseAmount * 0.3 + this.audioLevel * 0.28
   }
 }

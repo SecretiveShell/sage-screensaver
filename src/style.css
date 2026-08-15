@@ -3,17 +3,125 @@
   background: #000;
 }
 
+html,
+body,
+#app {
+  height: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+
 body {
   margin: 0;
-  min-width: 100vw;
-  min-height: 100vh;
 }
 
-#app,
 #app > main {
-  min-height: 100vh;
+  height: 100%;
 }
 
-canvas {
-  display: block;
+button,
+input,
+select {
+  font: inherit;
+}
+
+.demo-page {
+  background: #05070a;
+  color: #e8f1f8;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.demo-preview {
+  min-height: 0;
+}
+
+.demo-controls {
+  background: #0b1017;
+  border-left: 1px solid #24313d;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+}
+
+.demo-controls h1,
+.demo-controls p {
+  margin: 0;
+}
+
+.demo-controls h1 {
+  font-size: 1.35rem;
+}
+
+.demo-eyebrow {
+  color: #8faabd;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.demo-controls label {
+  color: #b7c9d8;
+  display: grid;
+  font-size: 0.8rem;
+  gap: 7px;
+}
+
+.demo-controls input,
+.demo-controls select,
+.demo-controls button {
+  border: 1px solid #334655;
+  border-radius: 5px;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  width: 100%;
+}
+
+.demo-controls input,
+.demo-controls select {
+  background: #101923;
+  color: inherit;
+}
+
+.demo-controls button {
+  background: #18374a;
+  color: #e8f1f8;
+  cursor: pointer;
+}
+
+.demo-controls button:hover {
+  background: #20516c;
+}
+
+.demo-note {
+  color: #8296a6;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  html,
+  body,
+  #app {
+    overflow: auto;
+  }
+
+  .demo-page {
+    grid-template-columns: 1fr;
+    min-height: 100%;
+  }
+
+  #app > main.demo-page {
+    height: auto;
+  }
+
+  .demo-preview {
+    height: 60vh;
+  }
+
+  .demo-controls {
+    border-left: 0;
+    border-top: 1px solid #24313d;
+  }
 }
