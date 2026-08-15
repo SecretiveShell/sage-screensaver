@@ -144,3 +144,8 @@ export const THEMES = {
 } satisfies Record<string, ThemeConfig>
 
 export type ThemeName = keyof typeof THEMES
+/** A built-in theme name or a complete custom theme configuration. */
+export type Theme = ThemeName | ThemeConfig
+
+/** All built-in themes, suitable for menus and controls. */
+export const THEME_NAMES = Object.freeze(Object.keys(THEMES) as ThemeName[])

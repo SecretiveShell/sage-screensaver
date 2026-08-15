@@ -11,7 +11,7 @@ import { Icosahedron } from './objects/icosahedron.js'
 import { OuterLabel } from './objects/outer-label.js'
 import { SignalRing } from './objects/signal-ring.js'
 import { ThemeController } from './theme-controller.js'
-import { THEMES, type ThemeConfig, type ThemeName } from './themes.js'
+import { THEMES, type Theme, type ThemeConfig } from './themes.js'
 
 interface Updatable {
   update(delta: number): void
@@ -250,7 +250,7 @@ export class Scene {
     this.setMinimalMode(!this.minimalMode)
   }
 
-  setTheme(theme: ThemeName) {
+  setTheme(theme: Theme) {
     this.activeTheme = this.themeController.setTheme(theme)
     this.nextThemeEffect = this.elapsed
     this.backgroundParticles.group.visible = !this.minimalMode

@@ -2,13 +2,15 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   type ComponentPropsWithoutRef,
 } from 'react'
 import { Scene } from './scene.js'
-import type { ThemeName } from './themes.js'
+import type { Theme } from './themes.js'
 
 export interface SageAnimationHandle {
+  /** Restore the ambient random glyph ring. */
   clearMessage(): void
   gatherCubes(): void
   pulseCore(): void
@@ -19,18 +21,25 @@ export interface SageAnimationHandle {
   setAudioElement(element: HTMLMediaElement | null): void
   setAudioLevel(level: number): void
   setSignalLevel(level: number): void
-  setTheme(theme: ThemeName): void
+  setTheme(theme: Theme): void
   showMessage(message: string): void
 }
 
 export interface SageAnimationProps extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
+  /** A live audio stream to analyse. Takes precedence over `audioLevel`. */
   audioStream?: MediaStream | null
+  /** A media element to analyse. Call `resumeAudio` from a user gesture before playback. */
   audioElement?: HTMLMediaElement | null
+  /** A 0–1 audio fallback for sources that cannot be analysed by the Web Audio API. */
   audioLevel?: number
+  /** Text phased into the outer ring. `null` or an empty string restores ambient glyphs. */
   message?: string | null
   minimal?: boolean
+  /** Called once the canvas is ready; useful when a ref is inconvenient. */
+  onReady?: (handle: SageAnimationHandle) => void
   signalLevel?: number
-  theme?: ThemeName
+  /** A built-in theme name or a complete `ThemeConfig`. */
+  theme?: Theme
 }
 
 export const SageAnimation = forwardRef<SageAnimationHandle, SageAnimationProps>(
@@ -42,6 +51,7 @@ export const SageAnimation = forwardRef<SageAnimationHandle, SageAnimationProps>
       audioLevel = 0,
       message,
       minimal = false,
+      onReady,
       signalLevel = 0,
       style,
       theme = 'cool',
@@ -52,7 +62,7 @@ export const SageAnimation = forwardRef<SageAnimationHandle, SageAnimationProps>
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const sceneRef = useRef<Scene | null>(null)
 
-    useImperativeHandle(ref, () => ({
+    const handle = useMemo<SageAnimationHandle>(() => ({
       clearMessage: () => sceneRef.current?.clearMessage(),
       gatherCubes: () => sceneRef.current?.gatherCubes(),
       pulseCore: () => sceneRef.current?.pulseCore(),
@@ -66,6 +76,8 @@ export const SageAnimation = forwardRef<SageAnimationHandle, SageAnimationProps>
       setTheme: (nextTheme) => sceneRef.current?.setTheme(nextTheme),
       showMessage: (nextMessage) => sceneRef.current?.showMessage(nextMessage),
     }), [])
+
+    useImperativeHandle(ref, () => handle, [handle])
 
     useEffect(() => {
       const canvas = canvasRef.current
@@ -82,6 +94,12 @@ export const SageAnimation = forwardRef<SageAnimationHandle, SageAnimationProps>
         sceneRef.current = null
       }
     }, [])
+
+    useEffect(() => {
+      if (sceneRef.current) {
+        onReady?.(handle)
+      }
+    }, [handle, onReady])
 
     useEffect(() => {
       sceneRef.current?.setTheme(theme)

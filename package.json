@@ -2,7 +2,15 @@
   "name": "sage-screensaver",
   "private": true,
   "version": "0.0.0",
+  "description": "A reactive Three.js AI-agent animation for React.",
+  "keywords": [
+    "react",
+    "threejs",
+    "animation",
+    "ai"
+  ],
   "type": "module",
+  "module": "./dist/lib/index.js",
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
@@ -15,6 +23,9 @@
     "dist/types"
   ],
   "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "pnpm run build:app && pnpm run build:library",
@@ -28,18 +39,19 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/three": "^0.185.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2",
+    "three": "^0.185.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
     "wrangler": "^4.114.0"
   },
-  "dependencies": {
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.2",
-    "three": "^0.185.1"
-  },
   "peerDependencies": {
     "react": ">=18",
     "three": ">=0.185.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

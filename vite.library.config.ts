@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  // Demo audio belongs to the application build, never the component package.
+  publicDir: false,
   build: {
     emptyOutDir: false,
     outDir: 'dist/lib',
