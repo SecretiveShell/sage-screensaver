@@ -53,6 +53,8 @@ export class Scene {
   private audioData?: Uint8Array<ArrayBuffer>
   private audioElement?: HTMLMediaElement
   private frequencyData?: Uint8Array<ArrayBuffer>
+  private readonly innerSpectrum = new Float32Array(12)
+  private readonly outerSpectrum = new Float32Array(12)
   private audioSource?: AudioNode
   private audioStream?: MediaStream
   private manualAudioLevel = 0
@@ -353,7 +355,9 @@ export class Scene {
       this.core.setAudioLevel(this.manualAudioLevel)
       this.coreRays.setAudioLevel(this.manualAudioLevel)
       this.icosahedron.setAudioLevel(this.manualAudioLevel)
+      this.icosahedron.setAudioSpectrum(null)
       this.outerIcosahedron.setAudioLevel(this.manualAudioLevel * 0.65)
+      this.outerIcosahedron.setAudioSpectrum(null)
       return
     }
 
@@ -369,8 +373,10 @@ export class Scene {
     const level = Math.min(Math.sqrt(energy / this.audioData.length) * 4, 1)
     this.core.setAudioLevel(level)
     this.coreRays.setAudioLevel(level)
-    this.icosahedron.setAudioLevel(enhanceBand(averageBand(this.frequencyData!, 2, 12)))
-    this.outerIcosahedron.setAudioLevel(enhanceBand(averageBand(this.frequencyData!, 12, 72)))
+    fillSpectrum(this.frequencyData!, this.innerSpectrum, 2, 48)
+    fillSpectrum(this.frequencyData!, this.outerSpectrum, 8, 96)
+    this.icosahedron.setAudioSpectrum(this.innerSpectrum)
+    this.outerIcosahedron.setAudioSpectrum(this.outerSpectrum)
   }
 
   private disposeAudio() {
@@ -436,6 +442,20 @@ function averageBand(data: Uint8Array<ArrayBuffer>, start: number, end: number) 
   }
 
   return total / Math.max(upperBound - start, 1) / 255
+}
+
+function fillSpectrum(
+  data: Uint8Array<ArrayBuffer>,
+  target: Float32Array,
+  start: number,
+  end: number,
+) {
+  const range = Math.min(end, data.length) - start
+  for (let index = 0; index < target.length; index += 1) {
+    const bandStart = start + Math.floor((index / target.length) * range)
+    const bandEnd = start + Math.floor(((index + 1) / target.length) * range)
+    target[index] = enhanceBand(averageBand(data, bandStart, Math.max(bandStart + 1, bandEnd)))
+  }
 }
 
 function enhanceBand(level: number) {
