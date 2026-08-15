@@ -5,8 +5,8 @@ import {
   useRef,
   type ComponentPropsWithoutRef,
 } from 'react'
-import { Scene } from './scene.ts'
-import type { ThemeName } from './themes.ts'
+import { Scene } from './scene.js'
+import type { ThemeName } from './themes.js'
 
 export interface SageAnimationHandle {
   clearMessage(): void

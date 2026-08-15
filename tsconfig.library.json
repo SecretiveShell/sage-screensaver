@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": false,
+    "declaration": true,
+    "declarationDir": "dist/types",
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "rootDir": "src",
+    "types": ["react"]
+  },
+  "include": ["src/index.ts"],
+  "exclude": ["src/demo-page.tsx", "src/main.tsx"]
+}

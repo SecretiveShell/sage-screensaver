@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type ChangeEvent } from 'react'
-import { SageAnimation, type SageAnimationHandle } from './sage-animation.tsx'
-import { THEMES, type ThemeName } from './themes.ts'
+import { SageAnimation, type SageAnimationHandle } from './sage-animation.js'
+import { THEMES, type ThemeName } from './themes.js'
 
 const themeNames = Object.keys(THEMES) as ThemeName[]
 

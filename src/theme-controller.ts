@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
-import { THEMES, type ThemeConfig, type ThemeName } from './themes.ts'
+import { THEMES, type ThemeConfig, type ThemeName } from './themes.js'
 
 export interface ThemeMaterials {
   core: THREE.Material[]

@@ -3,9 +3,23 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/lib/index.js"
+    }
+  },
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist/lib",
+    "dist/types"
+  ],
+  "sideEffects": false,
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "pnpm run build:app && pnpm run build:library",
+    "build:app": "tsc && vite build",
+    "build:library": "tsc -p tsconfig.library.json && vite build --config vite.library.config.ts",
     "preview": "pnpm run build && wrangler dev",
     "deploy": "pnpm run build && wrangler deploy"
   },
@@ -23,5 +37,9 @@
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
     "three": "^0.185.1"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "three": ">=0.185.0"
   }
 }

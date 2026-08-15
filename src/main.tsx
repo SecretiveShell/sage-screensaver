@@ -1,8 +1,8 @@
 import './style.css'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { DemoPage } from './demo-page.tsx'
-import { SageAnimation } from './sage-animation.tsx'
+import { DemoPage } from './demo-page.js'
+import { SageAnimation } from './sage-animation.js'
 
 createRoot(document.querySelector<HTMLDivElement>('#app')!).render(
   <BrowserRouter>
