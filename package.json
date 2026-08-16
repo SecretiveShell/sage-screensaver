@@ -1,6 +1,5 @@
 {
   "name": "sage-screensaver",
-  "private": true,
   "version": "0.0.0",
   "description": "A reactive Three.js AI-agent animation for React.",
   "keywords": [
@@ -31,6 +30,7 @@
     "build": "pnpm run build:app && pnpm run build:library",
     "build:app": "tsc && vite build",
     "build:library": "tsc -p tsconfig.library.json && vite build --config vite.library.config.ts",
+    "prepack": "pnpm run build:library",
     "preview": "pnpm run build && wrangler dev",
     "deploy": "pnpm run build && wrangler deploy"
   },
