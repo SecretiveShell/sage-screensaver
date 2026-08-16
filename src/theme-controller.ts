@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
-import { THEMES, type ThemeConfig, type ThemeName } from './themes.ts'
+import { THEMES, type Theme, type ThemeConfig } from './themes.js'
 
 export interface ThemeMaterials {
   core: THREE.Material[]
@@ -26,8 +26,8 @@ export class ThemeController {
     this.materials = materials
   }
 
-  setTheme(name: ThemeName) {
-    this.target = THEMES[name]
+  setTheme(theme: Theme) {
+    this.target = typeof theme === 'string' ? THEMES[theme] : theme
     this.targetBackground.set(this.target.colors.background)
     this.targetCore.set(this.target.colors.core)
     this.targetForeground.set(this.target.colors.foreground)

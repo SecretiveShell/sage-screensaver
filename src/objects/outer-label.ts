@@ -1,17 +1,17 @@
 import * as THREE from 'three'
 
-const CLEAR_STEP_DURATION = 0.04
-const GLITCH_CYCLES = 3
-const GLYPH_UPDATE_INTERVAL = 0.12
+const GLYPH_UPDATE_INTERVAL = 0.14
 const MAX_RANDOM_GLYPH_CHANGES = 32
-const WAVE_STEP_DURATION = 0.075
+const MAX_PHASE_TRANSITIONS = 10
+const MIN_PHASE_TRANSITIONS = 5
 
-interface MessageTransition {
-  glyphs?: string[]
-  loops: number
-  phase: 'clearing' | 'revealing' | 'looping'
-  progress: number
-  stepElapsed: number
+interface MessageState {
+  locked: boolean[]
+  phase: 'in' | 'out' | 'steady'
+  retired: boolean[]
+  retiring: boolean[]
+  target: string[]
+  transitionsRemaining: number
 }
 
 export class OuterLabel {
@@ -19,10 +19,9 @@ export class OuterLabel {
 
   private readonly context: CanvasRenderingContext2D
   private readonly glyphs = [...randomGlyphs(116)]
-  private readonly ringOrder = createRingOrder(this.glyphs.length)
   private readonly texture: THREE.CanvasTexture
   private glyphElapsed = 0
-  private transition?: MessageTransition
+  private messageState?: MessageState
 
   constructor(radius = 2.5) {
     const labelTexture = createLabelTexture(this.glyphs)
@@ -43,19 +42,10 @@ export class OuterLabel {
   update(delta: number) {
     this.mesh.material.rotation -= delta * 0.05
 
-    if (this.transition) {
-      this.updateTransition(delta)
-      return
-    }
-
     this.glyphElapsed += delta
 
     if (this.glyphElapsed >= GLYPH_UPDATE_INTERVAL) {
-      const changes = 1 + Math.floor(Math.random() * MAX_RANDOM_GLYPH_CHANGES)
-
-      for (let index = 0; index < changes; index += 1) {
-        this.glyphs[Math.floor(Math.random() * this.glyphs.length)] = randomGlyph()
-      }
+      this.updateGlyphs()
 
       redrawLabel(this.context, this.glyphs)
       this.texture.needsUpdate = true
@@ -64,80 +54,91 @@ export class OuterLabel {
   }
 
   showMessage(message: string) {
-    this.clearMessage()
-    this.transition!.glyphs = createMessageGlyphs(message, this.glyphs.length)
+    const target = createMessageGlyphs(message, this.glyphs.length)
+    const previousTarget = this.messageState?.target
+    this.messageState = {
+      locked: Array<boolean>(this.glyphs.length).fill(false),
+      phase: 'in',
+      retired: Array<boolean>(this.glyphs.length).fill(false),
+      retiring: target.map((character, index) => Boolean(previousTarget?.[index]) && !character),
+      target,
+      transitionsRemaining: randomTransitionCount(),
+    }
   }
 
   clearMessage() {
-    this.transition = {
-      loops: 0,
-      phase: 'clearing',
-      progress: 0,
-      stepElapsed: 0,
+    if (!this.messageState) {
+      return
+    }
+
+    this.messageState.retiring = this.messageState.target.map(Boolean)
+    this.messageState.retired = Array<boolean>(this.glyphs.length).fill(false)
+    this.messageState.phase = 'out'
+    this.messageState.transitionsRemaining = randomTransitionCount()
+  }
+
+  private updateGlyphs() {
+    if (this.messageState) {
+      const state = this.messageState
+      this.advanceMessagePhase(state)
+
+      if (state.phase === 'out' && !this.messageState) {
+        this.glyphs.splice(0, this.glyphs.length, ...randomGlyphs(this.glyphs.length))
+        return
+      }
+
+      for (const [index, target] of state.target.entries()) {
+        this.glyphs[index] = state.phase === 'out'
+          ? (state.retiring[index] && !state.retired[index] ? target : randomGlyph())
+          : target
+          ? (state.locked[index] ? target : randomGlyph())
+          : (state.retiring[index] && !state.retired[index] ? randomGlyph() : ' ')
+      }
+
+      return
+    }
+
+    const changes = 1 + Math.floor(Math.random() * MAX_RANDOM_GLYPH_CHANGES)
+    for (let index = 0; index < changes; index += 1) {
+      this.glyphs[Math.floor(Math.random() * this.glyphs.length)] = randomGlyph()
     }
   }
 
-  private updateTransition(delta: number) {
-    const transition = this.transition!
-    transition.stepElapsed += delta
-    const stepDuration =
-      transition.phase === 'clearing' ? CLEAR_STEP_DURATION : WAVE_STEP_DURATION
-    let changed = false
+  private advanceMessagePhase(state: MessageState) {
+    if (state.phase === 'steady') {
+      return
+    }
 
-    while (transition.stepElapsed >= stepDuration) {
-      transition.stepElapsed -= stepDuration
-      changed = true
-      if (transition.phase === 'clearing') {
-        advanceGlyphWave(this.glyphs, this.ringOrder, transition.progress, () => '')
-        transition.progress += 1
+    const candidates = state.target.flatMap((target, index) => {
+      if (state.phase === 'out') {
+        return state.retiring[index] && !state.retired[index] ? [{ index, type: 'retire' }] : []
+      }
 
-        if (transition.progress > this.glyphs.length + 3) {
-          if (transition.glyphs) {
-            transition.phase = 'revealing'
-            transition.progress = 0
-          } else {
-            this.transition = undefined
-            break
-          }
-        }
-      } else if (transition.phase === 'revealing') {
-        advanceGlyphWave(
-          this.glyphs,
-          this.ringOrder,
-          transition.progress,
-          (index) => transition.glyphs![index],
-        )
-        transition.progress += 1
+      if (target && !state.locked[index]) {
+        return [{ index, type: 'lock' }]
+      }
 
-        if (transition.progress > this.glyphs.length + 3) {
-          transition.phase = 'looping'
-          transition.progress = 0
-        }
+      return state.retiring[index] && !state.retired[index] ? [{ index, type: 'retire' }] : []
+    })
+    const changes = Math.max(1, Math.ceil(candidates.length / state.transitionsRemaining))
+
+    for (let index = 0; index < changes && candidates.length > 0; index += 1) {
+      const candidateIndex = Math.floor(Math.random() * candidates.length)
+      const candidate = candidates.splice(candidateIndex, 1)[0]
+      if (candidate.type === 'lock') {
+        state.locked[candidate.index] = true
       } else {
-        advanceGlyphWave(
-          this.glyphs,
-          this.ringOrder,
-          transition.progress,
-          (index) => transition.glyphs![index],
-        )
-        transition.progress += 1
-
-        if (transition.progress > this.glyphs.length + 3) {
-          transition.loops += 1
-
-          if (transition.loops >= GLITCH_CYCLES) {
-            this.clearMessage()
-            break
-          }
-
-          transition.progress = 0
-        }
+        state.retired[candidate.index] = true
       }
     }
 
-    if (changed) {
-      redrawLabel(this.context, this.glyphs)
-      this.texture.needsUpdate = true
+    state.transitionsRemaining -= 1
+    if (state.transitionsRemaining <= 0 || candidates.length === 0) {
+      if (state.phase === 'out') {
+        this.messageState = undefined
+      } else {
+        state.phase = 'steady'
+      }
     }
   }
 }
@@ -230,29 +231,6 @@ function randomGlyph() {
   return glyphs[Math.floor(Math.random() * glyphs.length)]
 }
 
-function createRingOrder(length: number) {
-  const leftmostGlyph = Math.floor(length * 0.75)
-
-  return Array.from({ length }, (_, index) => (index + leftmostGlyph) % length)
-}
-
-function advanceGlyphWave(
-  glyphs: string[],
-  order: number[],
-  progress: number,
-  complete: (index: number) => string,
-) {
-  for (const [position, index] of order.entries()) {
-    const age = progress - position
-
-    if (age >= 3) {
-      glyphs[index] = complete(index)
-    } else if (age >= 0) {
-      glyphs[index] = randomGlyph()
-    }
-  }
-}
-
 function createMessageGlyphs(message: string, length: number) {
   const glyphs = Array<string>(length).fill('')
   const characters = [...message.toUpperCase()]
@@ -263,4 +241,10 @@ function createMessageGlyphs(message: string, length: number) {
   }
 
   return glyphs
+}
+
+function randomTransitionCount() {
+  return MIN_PHASE_TRANSITIONS + Math.floor(
+    Math.random() * (MAX_PHASE_TRANSITIONS - MIN_PHASE_TRANSITIONS + 1),
+  )
 }
